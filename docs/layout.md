@@ -19,16 +19,14 @@
 | `docs/` | Архитектура, решения, текст для собеседования, проверка сервера |
 | `pyproject.toml`, `app/` | FastAPI: `/health` и страница счётчика |
 | `tests/` | pytest: health без базы, счётчик с подменой доступа |
-| `.github/workflows/ci.yml` | На push и pull request: Ruff и pytest, Python 3.12 |
+| `Dockerfile` | Два этапа, пользователь `app`, Uvicorn на порту 8000 |
+| `docker-compose.yml` | `app`, `postgres` с volume и healthcheck, `nginx` на портах 80 и 443 |
+| `nginx/` | Порты 80 и 443. Временный сертификат, затем файлы Let's Encrypt из volume |
+| `deploy/issue-certificate.sh` | Первый выпуск сертификата на VPS |
+| `deploy/renew-certificate.sh` | Продление сертификата и перечитка конфига Nginx |
+| `deploy/update.sh` | Обновление на VPS: pull образа и up, без удаления volume |
+| `.github/workflows/ci.yml` | Ruff и pytest на каждый push. Сборка, GHCR и SSH только из `main` |
 
 ## Запланировано
 
-| Порядок | Путь | Что появится |
-| --- | --- | --- |
-| 3 | `Dockerfile` | Multi-stage образ, пользователь без root |
-| 4 | `docker-compose.yml` | `app`, `postgres` с volume и healthcheck, `nginx` |
-| 5 | `nginx/` | Прокси и выдача файла проверки Let's Encrypt |
-| 6 | `deploy/` | Команда обновления на VPS: pull и up |
-| 7 | `.github/workflows/ci.yml` | В тот же workflow: сборка, GHCR, деплой по SSH только из `main` |
-
-Каталоги `nginx/` и `deploy/` пока пустые.
+Рабочих файлов вне дерева нет. Сайт откроется после первого зелёного прогона workflow на `main`, когда на VPS лежат клон в `/opt/docker-vps-deploy`, файл `.env` и секреты `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.

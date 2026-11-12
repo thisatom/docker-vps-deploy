@@ -2,16 +2,16 @@
 
 ## Статус
 
-Принято. В `.github/workflows/ci.yml` уже есть Ruff и pytest. Сборки образа и SSH ещё нет: для них нужны Dockerfile и compose.
+Принято. В `.github/workflows/ci.yml` три job: тесты, публикация образа, деплой. Команда на сервере одна: `deploy/update.sh`.
 
 ## Решение
 
 Один workflow GitHub Actions:
 
 1. Ruff и pytest на каждый push и на pull request. Python в раннере — 3.12.
-2. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — позже, только push в `main`, после зелёных тестов.
+2. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — только push в `main`, после зелёных тестов.
 3. Тег образа — SHA коммита. Тег `latest` указывает на тот же образ.
-4. По SSH на VPS выполняется `docker compose pull && docker compose up -d`.
+4. По SSH на VPS, в каталоге `/opt/docker-vps-deploy`, выполняется `sh deploy/update.sh`: это `docker compose pull` и `docker compose up -d`.
 
 Секреты раннера: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`. Пароль базы в Actions не передаётся: он уже записан в `.env` на сервере. На сервере в `.env` поле `APP_IMAGE` указывает на образ в GHCR.
 
@@ -22,7 +22,7 @@
 Образ предыдущего коммита остаётся в GHCR под своим SHA. Откат:
 
 1. На VPS в `.env` поставить `APP_IMAGE` на предыдущий SHA.
-2. `docker compose pull && docker compose up -d`.
+2. `sh deploy/update.sh` в каталоге проекта на сервере.
 
 Volume Postgres при этом не трогать. Откат приложения не должен удалять счётчик.
 

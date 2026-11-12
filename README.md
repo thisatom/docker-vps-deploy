@@ -10,16 +10,13 @@
 
 - фундамент: правила, хуки, навыки агента, схема и решения;
 - приложение FastAPI и тесты pytest;
-- GitHub Actions: Ruff и pytest на каждый push.
+- Dockerfile: два этапа, процесс не от root;
+- Docker Compose: приложение, PostgreSQL с volume и healthcheck, Nginx на портах 80 и 443;
+- выпуск и продление сертификата Let's Encrypt через Certbot;
+- `deploy/update.sh`: на VPS скачать образ и поднять стек;
+- GitHub Actions: Ruff и pytest на каждый push; сборка, GHCR и деплой по SSH только из `main`.
 
-Запланировано, файлов ещё нет:
-
-- Dockerfile;
-- `docker-compose.yml`;
-- конфиг Nginx и выпуск сертификата;
-- сборка образа, публикация в GHCR и деплой по SSH в том же workflow.
-
-Сайт на VPS ещё не открывается: нет образа и compose. Порядок работ — в `docs/layout.md`.
+Сайт на VPS откроется после зелёного прогона workflow на `main`. Для этого на сервере нужен клон в `/opt/docker-vps-deploy`, файл `.env` и секреты `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`. Этот прогон из репозитория сам по себе ещё не доказывает, что сервер уже отвечает.
 
 ## Что умеет приложение
 
@@ -63,10 +60,10 @@ flowchart LR
 
 Браузер попадает только на Nginx. Nginx проксирует запрос в FastAPI по внутренней сети Compose. FastAPI читает и увеличивает счётчик в PostgreSQL. Наружу порты приложения и базы не публикуются.
 
-GitHub Actions уже гоняет линтер и тесты на каждый push. Публикация образа в GHCR и команда на сервере будут в том же workflow, когда появятся образ и compose:
+GitHub Actions на каждый push гоняет линтер и тесты. Push в `main` после зелёных тестов публикует образ в GHCR и по SSH запускает на сервере:
 
 ```bash
-docker compose pull && docker compose up -d
+sh deploy/update.sh
 ```
 
 Подробная схема: `docs/architecture.md`.
@@ -74,11 +71,13 @@ docker compose pull && docker compose up -d
 ## Структура
 
 ```text
+Dockerfile            два этапа, пользователь app, порт 8000
 app/                  FastAPI: /health и счётчик
 tests/                pytest без живой базы
-nginx/                конфиг прокси, пока пусто
-deploy/               команда обновления на VPS, пока пусто
-.github/workflows/    CI: Ruff и pytest
+docker-compose.yml    app, postgres, nginx
+nginx/                порты 80 и 443, шаблон прокси
+deploy/               выпуск сертификата, продление, обновление стека
+.github/workflows/    CI: тесты, образ в GHCR, деплой по SSH
 docs/                 архитектура, решения, ответы, проверка
 .cursor/rules/        правила для агента по темам
 .cursor/hooks/        запрет локального Docker и секретов в git
@@ -96,18 +95,20 @@ docs/                 архитектура, решения, ответы, пр
 
 ## Как запустить
 
-Docker на компьютере, где пишется код, недоступен. Локального запуска в этом проекте нет. Рабочий запуск — на VPS, после того как появятся compose-файл и образ.
+Docker на компьютере, где пишется код, недоступен. Локального запуска в этом проекте нет. Рабочий запуск — на VPS, когда образ уже опубликован в GHCR.
 
 Целевые шаги, когда код будет готов:
 
 1. На VPS установить Docker Engine и плагин Compose. Открыть порты 22, 80, 443.
 2. Домен направить A-записью на IP сервера.
-3. Склонировать репозиторий на сервер. Рядом с `docker-compose.yml` скопировать `.env.example` в `.env` и подставить свои значения.
-4. Первый выпуск сертификата сделать по `docs/decisions/0002-https.md`: сначала только порт 80, затем 443.
-5. Дальше сервер обновляется из Actions. Вручную та же команда:
+3. Склонировать репозиторий на сервер в `/opt/docker-vps-deploy`. Рядом с `docker-compose.yml` скопировать `.env.example` в `.env` и подставить свои значения. В `APP_IMAGE` владелец репозитория пишется строчными буквами, тег для обычного деплоя — `latest`.
+4. Если пакет в GHCR закрытый, один раз на сервере выполнить `docker login ghcr.io`. Токен в git не класть. Пользователь SSH должен иметь право запускать Docker.
+5. В GitHub Secrets записать `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
+6. Выпустить сертификат: `sh deploy/issue-certificate.sh`. Подробности — `docs/decisions/0002-https.md`.
+7. Дальше сервер обновляется из Actions. Вручную та же команда:
 
    ```bash
-   docker compose pull && docker compose up -d
+   sh deploy/update.sh
    ```
 
 ## Как откатить
@@ -116,7 +117,7 @@ Docker на компьютере, где пишется код, недоступ
 
 1. Выбрать SHA предыдущего успешного деплоя.
 2. На сервере в `.env` заменить `APP_IMAGE` на этот тег.
-3. Выполнить `docker compose pull && docker compose up -d`.
+3. Выполнить `sh deploy/update.sh`.
 4. Открыть `/health`.
 
 Volume базы при откате не удалять. `docker compose down -v` сотрёт счётчик. Для отката эта команда не используется.
