@@ -32,7 +32,7 @@
 
 ## Что делает pipeline
 
-Каждый push и pull request запускают GitHub Actions: Ruff, затем pytest, на Python 3.12. База для этого не поднимается, тесты подменяют доступ к ней. Push в `main` после зелёных тестов собирает образ и кладёт его в GHCR с тегом SHA и с тегом `latest`. Если в GitHub Secrets заданы `VPS_HOST`, `VPS_USER` и `VPS_SSH_KEY`, Actions по SSH заходит на VPS в `/opt/docker-vps-deploy` и запускает `deploy/update.sh`: сервер скачивает образ и поднимает контейнеры. Пока секретов нет, деплой пропускается, на сервере остаётся прежний контейнер. Сборки на сервере нет, в compose нет `build`. Пароль базы в Actions не передаётся.
+Каждый push и pull request запускают GitHub Actions: Ruff, затем pytest, на Python 3.12. База для этого не поднимается, тесты подменяют доступ к ней. Push в `main` после зелёных тестов собирает образ и кладёт его в GHCR с тегом SHA и с тегом `latest`. Если в GitHub Secrets заданы `VPS_HOST`, `VPS_USER` и `VPS_SSH_KEY`, Actions по SSH заходит на VPS в `/opt/docker-vps-deploy` и запускает `deploy/update.sh`: сервер скачивает образ и поднимает контейнеры. Пока секретов нет, шаг SSH пропускается, на сервере остаётся прежний контейнер. Проверять секреты в условии всего job нельзя: такой workflow GitHub не запускает. Сборки на сервере нет, в compose нет `build`. Пароль базы в Actions не передаётся.
 
 ## Как откатить
 
