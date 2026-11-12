@@ -2,17 +2,16 @@
 
 ## Статус
 
-Принято. Workflow ещё не написан.
+Принято. В `.github/workflows/ci.yml` уже есть Ruff и pytest. Сборки образа и SSH ещё нет: для них нужны Dockerfile и compose.
 
 ## Решение
 
-Один workflow GitHub Actions на push в `main`:
+Один workflow GitHub Actions:
 
-1. Ruff.
-2. pytest.
-3. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy`.
-4. Тег образа — SHA коммита. Тег `latest` указывает на тот же образ.
-5. По SSH на VPS выполняется `docker compose pull && docker compose up -d`.
+1. Ruff и pytest на каждый push и на pull request. Python в раннере — 3.12.
+2. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — позже, только push в `main`, после зелёных тестов.
+3. Тег образа — SHA коммита. Тег `latest` указывает на тот же образ.
+4. По SSH на VPS выполняется `docker compose pull && docker compose up -d`.
 
 Секреты раннера: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`. Пароль базы в Actions не передаётся: он уже записан в `.env` на сервере. На сервере в `.env` поле `APP_IMAGE` указывает на образ в GHCR.
 

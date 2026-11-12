@@ -6,12 +6,16 @@ alwaysApply: false
 
 # Поставка
 
-Один workflow на push в `main`, по порядку:
+Один workflow `.github/workflows/ci.yml`.
 
-1. Ruff.
-2. pytest.
-3. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy`.
-4. SSH на VPS: `docker compose pull && docker compose up -d`.
+Сейчас в нём job с Ruff и pytest. Он запускается на каждый push и на pull request. База и Docker этому job не нужны.
+
+Когда появятся Dockerfile и compose, в тот же файл добавь job-ы только для push в `main`:
+
+1. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy`.
+2. SSH на VPS: `docker compose pull && docker compose up -d`.
+
+Деплой не стартует, если тесты упали.
 
 ## Секреты Actions
 

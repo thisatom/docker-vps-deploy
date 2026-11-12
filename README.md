@@ -9,14 +9,15 @@
 Готово:
 
 - фундамент: правила, хуки, навыки агента, схема и решения;
-- приложение FastAPI и тесты pytest.
+- приложение FastAPI и тесты pytest;
+- GitHub Actions: Ruff и pytest на каждый push.
 
 Запланировано, файлов ещё нет:
 
 - Dockerfile;
 - `docker-compose.yml`;
 - конфиг Nginx и выпуск сертификата;
-- workflow GitHub Actions.
+- сборка образа, публикация в GHCR и деплой по SSH в том же workflow.
 
 Сайт на VPS ещё не открывается: нет образа и compose. Порядок работ — в `docs/layout.md`.
 
@@ -62,7 +63,7 @@ flowchart LR
 
 Браузер попадает только на Nginx. Nginx проксирует запрос в FastAPI по внутренней сети Compose. FastAPI читает и увеличивает счётчик в PostgreSQL. Наружу порты приложения и базы не публикуются.
 
-GitHub Actions на push в `main` гоняет линтер и тесты, публикует образ в GHCR и по SSH выполняет на сервере:
+GitHub Actions уже гоняет линтер и тесты на каждый push. Публикация образа в GHCR и команда на сервере будут в том же workflow, когда появятся образ и compose:
 
 ```bash
 docker compose pull && docker compose up -d
@@ -77,7 +78,7 @@ app/                  FastAPI: /health и счётчик
 tests/                pytest без живой базы
 nginx/                конфиг прокси, пока пусто
 deploy/               команда обновления на VPS, пока пусто
-.github/workflows/    pipeline, пока пусто
+.github/workflows/    CI: Ruff и pytest
 docs/                 архитектура, решения, ответы, проверка
 .cursor/rules/        правила для агента по темам
 .cursor/hooks/        запрет локального Docker и секретов в git
@@ -133,6 +134,8 @@ pytest
 ```
 
 `/health` в тесте вызывается без `DATABASE_URL`. Счётчик в тесте получает число из подмены, а не из PostgreSQL.
+
+Те же команды выполняет GitHub Actions после push. Вкладка Actions, workflow `CI`, job `Ruff and pytest`. Для этого раннеру не нужны секреты и база.
 
 Дополнительно в репозитории:
 
