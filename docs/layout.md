@@ -19,6 +19,7 @@
 | `docs/` | Архитектура, решения, текст для собеседования, проверка сервера |
 | `pyproject.toml`, `app/` | FastAPI: `/health` и страница счётчика |
 | `tests/` | pytest: health без базы, счётчик с подменой доступа |
+| `.github/workflows/ci.yml` | На push и pull request: Ruff и pytest, Python 3.12 |
 
 ## Запланировано
 
@@ -28,6 +29,6 @@
 | 4 | `docker-compose.yml` | `app`, `postgres` с volume и healthcheck, `nginx` |
 | 5 | `nginx/` | Прокси и выдача файла проверки Let's Encrypt |
 | 6 | `deploy/` | Команда обновления на VPS: pull и up |
-| 7 | `.github/workflows/` | Ruff, pytest, сборка, GHCR, деплой по SSH |
+| 7 | `.github/workflows/ci.yml` | В тот же workflow: сборка, GHCR, деплой по SSH только из `main` |
 
-Каталоги `nginx/`, `deploy/`, `.github/workflows/` пока пустые.
+Каталоги `nginx/` и `deploy/` пока пустые.
