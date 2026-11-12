@@ -12,7 +12,7 @@ alwaysApply: false
 2. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — только push в `main`, после зелёных тестов. Теги: полный SHA коммита и `latest`.
 3. SSH на VPS в каталог `/opt/docker-vps-deploy`: `sh deploy/update.sh`. Скрипт делает `docker compose pull` и `docker compose up -d`.
 
-Деплой не стартует, если тесты упали или событие — не push в `main`. Секреты в условии job писать нельзя: workflow станет невалидным. Пустые `VPS_HOST`, `VPS_USER` или `VPS_SSH_KEY` пропускают шаг SSH внутри job. Job при этом зелёный, сервер не меняется. Сборки на сервере нет.
+Деплой не стартует, если тесты упали или событие — не push в `main`. Контекст `secrets` нельзя писать в `if`: ни у job, ни у шага. Иначе workflow невалиден и не стартует даже Ruff. Пустые `VPS_HOST`, `VPS_USER` или `VPS_SSH_KEY` определяются обычным шагом и пропускают SSH. Job при этом зелёный, сервер не меняется. Сборки на сервере нет.
 
 ## Секреты Actions
 
