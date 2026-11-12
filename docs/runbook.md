@@ -8,7 +8,7 @@
 
 После push в любую ветку открой GitHub Actions, workflow `CI`. Job `Ruff and pytest` должен быть зелёным. Секреты для него не задаются.
 
-Push в `main` после тестов запускает ещё два job: `Build and push image` и `Deploy to VPS`. Второй job зелёный только если заданы `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` и на сервере есть каталог `/opt/docker-vps-deploy` с `.env`.
+Push в `main` после тестов запускает `Build and push image`. Job `Deploy to VPS` стартует только если заданы все три секрета: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`. Пока их нет, job пропускается, workflow остаётся зелёным, сервер не меняется. После появления секретов деплой зелёный, если на сервере есть каталог `/opt/docker-vps-deploy` с `.env`.
 
 Перед первым деплоем на VPS:
 
