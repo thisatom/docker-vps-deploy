@@ -1,0 +1,22 @@
+---
+description: Базовые правила учебного проекта docker-vps-deploy
+alwaysApply: true
+---
+
+# Проект
+
+Учебный портфолио-проект: FastAPI, PostgreSQL, Nginx, Certbot, Docker Compose на VPS Debian 12, поставка через GitHub Actions и GHCR.
+
+## Обязательно
+
+- После шага объясняй по-русски: что изменилось, зачем это в проде, как сказать на собеседовании.
+- Проверка — GitHub Actions и VPS. Команды `docker`, `docker compose`, `podman`, `nerdctl` на компьютере разработчика запрещены.
+- Секреты живут в `.env` на сервере и в GitHub Secrets. В git только `.env.example`.
+- Документы без эмодзи. Термин сопровождай коротким смыслом.
+- Этап считается готовым только когда его файлы есть в дереве. Карта: `docs/layout.md`.
+
+## Пример
+
+Плохо: «Запусти docker compose up у себя».
+
+Хорошо: «На VPS в каталоге проекта: `docker compose pull && docker compose up -d`. На рабочей станции Docker недоступен.»

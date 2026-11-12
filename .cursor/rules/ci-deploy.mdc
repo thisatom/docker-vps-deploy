@@ -1,0 +1,30 @@
+---
+description: GitHub Actions, GHCR и деплой по SSH
+globs: .github/**
+alwaysApply: false
+---
+
+# Поставка
+
+Один workflow на push в `main`, по порядку:
+
+1. Ruff.
+2. pytest.
+3. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy`.
+4. SSH на VPS: `docker compose pull && docker compose up -d`.
+
+## Секреты Actions
+
+- `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` — GitHub Secrets.
+- Пароль базы на раннер не копируется: он уже в `.env` на сервере.
+- Ключ SSH в лог не выводится.
+
+## Откат
+
+Предыдущий тег образа остаётся в GHCR. Откат — выставить `APP_IMAGE` на прошлый тег (SHA коммита) и снова `docker compose pull && docker compose up -d`. Базу при отказе приложения не удалять.
+
+## Пример
+
+Плохо: `docker compose up --build` на сервере из исходников в обход реестра.
+
+Хорошо: сервер тянет уже собранный образ из GHCR. Сборка происходит в Actions.

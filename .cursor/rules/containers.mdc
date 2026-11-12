@@ -1,0 +1,26 @@
+---
+description: Dockerfile, Compose, Nginx и секреты окружения
+globs: Dockerfile,docker-compose*.yml,.dockerignore,nginx/**,deploy/**
+alwaysApply: false
+---
+
+# Контейнеры
+
+- Образ приложения: multi-stage. В финальном слое нет компиляторов и исходников тестов.
+- Процесс в контейнере идёт от непривилегированного пользователя, не от root.
+- `docker-compose.yml`: сервисы `app`, `postgres`, `nginx`. У Postgres есть volume и healthcheck `pg_isready`.
+- `app` стартует после здоровой базы (`depends_on` + `condition: service_healthy`).
+- Nginx — единственная точка входа с хоста (80/443). Приложение и база наружу не публикуются.
+- Пароли только через `env_file: .env` или подстановку из `.env`. В compose нет живых секретов.
+- Сертификаты — volume, общий для Nginx и Certbot. Каталог сертификатов в git не коммитится.
+
+## Пример
+
+```yaml
+postgres:
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+    interval: 5s
+    timeout: 5s
+    retries: 10
+```
