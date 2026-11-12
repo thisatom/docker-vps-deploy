@@ -8,14 +8,11 @@ alwaysApply: false
 
 Один workflow `.github/workflows/ci.yml`.
 
-Сейчас в нём job с Ruff и pytest. Он запускается на каждый push и на pull request. База и Docker этому job не нужны.
+1. Job с Ruff и pytest запускается на каждый push и на pull request. База и Docker этому job не нужны.
+2. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — только push в `main`, после зелёных тестов. Теги: полный SHA коммита и `latest`.
+3. SSH на VPS в каталог `/opt/docker-vps-deploy`: `sh deploy/update.sh`. Скрипт делает `docker compose pull` и `docker compose up -d`.
 
-Когда появятся Dockerfile и compose, в тот же файл добавь job-ы только для push в `main`:
-
-1. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy`.
-2. SSH на VPS: `docker compose pull && docker compose up -d`.
-
-Деплой не стартует, если тесты упали.
+Деплой не стартует, если тесты упали или событие — не push в `main`. Сборки на сервере нет.
 
 ## Секреты Actions
 
@@ -25,7 +22,7 @@ alwaysApply: false
 
 ## Откат
 
-Предыдущий тег образа остаётся в GHCR. Откат — выставить `APP_IMAGE` на прошлый тег (SHA коммита) и снова `docker compose pull && docker compose up -d`. Базу при отказе приложения не удалять.
+Предыдущий тег образа остаётся в GHCR. Откат — выставить `APP_IMAGE` на прошлый тег (SHA коммита) и снова `sh deploy/update.sh`. Базу при отказе приложения не удалять. Для следующего автоматического деплоя верни тег `latest`.
 
 ## Пример
 

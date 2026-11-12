@@ -36,7 +36,7 @@ flowchart LR
 GitHub Actions
   -> проверки и сборка
   -> образ в GHCR
-  -> SSH на VPS: docker compose pull && docker compose up -d
+  -> SSH на VPS: sh deploy/update.sh
 ```
 
 ## Кто за что отвечает

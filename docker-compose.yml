@@ -1,0 +1,58 @@
+# Секреты читаются из .env рядом с этим файлом. Паролей в самом файле нет.
+# С хоста открыты порты 80 и 443. Приложение и база остаются во внутренней сети.
+# Сервис certbot не стартует вместе со стеком: его вызывают скрипты в deploy/.
+
+services:
+  postgres:
+    image: postgres:16
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    image: ${APP_IMAGE}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    pull_policy: always
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint-wrapper.sh:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    entrypoint: ["/bin/sh", "/docker-entrypoint-wrapper.sh"]
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:v3
+    profiles: ["certificates"]
+    volumes:
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    entrypoint: ["certbot"]
+
+volumes:
+  postgres_data:
+  certbot_www:
+  letsencrypt:
