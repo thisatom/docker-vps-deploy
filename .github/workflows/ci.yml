@@ -66,7 +66,13 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      success() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      secrets.VPS_HOST != '' &&
+      secrets.VPS_USER != '' &&
+      secrets.VPS_SSH_KEY != ''
     runs-on: ubuntu-latest
     steps:
       - name: Pull and up over SSH
@@ -75,7 +81,6 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script_stop: true
           command_timeout: 10m
           script: |
             cd /opt/docker-vps-deploy
