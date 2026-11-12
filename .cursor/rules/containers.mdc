@@ -11,8 +11,11 @@ alwaysApply: false
 - `docker-compose.yml`: сервисы `app`, `postgres`, `nginx`. У Postgres есть volume и healthcheck `pg_isready`.
 - `app` стартует после здоровой базы (`depends_on` + `condition: service_healthy`).
 - Nginx — единственная точка входа с хоста (80/443). Приложение и база наружу не публикуются.
+- На порту 80 путь `/.well-known/acme-challenge/` отдаёт файлы Certbot, точный путь `/health` проксируется в приложение. Остальной HTTP уходит редиректом на HTTPS.
+- Временный самоподписанный сертификат создаёт скрипт входа Nginx. В образе `nginx:1.27-alpine` команды `openssl` нет, скрипт ставит пакет `openssl` через `apk`, только если файлов Let's Encrypt ещё нет.
+- Продление сертификата — `deploy/renew-certificate.sh`. Расписание ставит `deploy/install-renew-cron.sh` в crontab пользователя, который запускает Docker.
 - Пароли только через `env_file: .env` или подстановку из `.env`. В compose нет живых секретов.
-- Сертификаты — volume, общий для Nginx и Certbot. Каталог сертификатов в git не коммитится.
+- Сертификаты — volume, общий для Nginx и Certbot. Каталог сертификатов в git не коммитится. Приватный ключ, даже временный, в git не кладётся.
 
 ## Пример
 

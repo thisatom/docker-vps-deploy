@@ -10,6 +10,7 @@ id_ed25519
 # Сертификаты Let's Encrypt не коммитятся
 letsencrypt/
 certs/
+renew.log
 
 # Python
 .venv/

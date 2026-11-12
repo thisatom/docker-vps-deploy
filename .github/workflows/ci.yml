@@ -29,9 +29,122 @@ jobs:
       - name: Pytest
         run: pytest
 
+  integration:
+    name: Pytest with PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: change-me
+          POSTGRES_DB: visits
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d visits"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project
+        run: pip install -e ".[dev]"
+
+      - name: Counter against PostgreSQL
+        env:
+          DATABASE_URL: postgresql://app:change-me@localhost:5432/visits
+        run: pytest tests/test_counter_db.py
+
+  stack:
+    name: Compose smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build app image
+        run: docker build -t docker-vps-deploy:ci .
+
+      - name: Write smoke env
+        run: |
+          cat > .env <<'EOF'
+          DOMAIN=example.com
+          ACME_EMAIL=you@example.com
+          POSTGRES_USER=app
+          POSTGRES_PASSWORD=change-me
+          POSTGRES_DB=visits
+          DATABASE_URL=postgresql://app:change-me@postgres:5432/visits
+          APP_IMAGE=docker-vps-deploy:ci
+          EOF
+
+      - name: Start stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+
+      - name: Health and counter
+        run: |
+          set -eu
+          wait_http() {
+            i=0
+            while [ "$i" -lt 24 ]; do
+              if curl -fsS http://127.0.0.1/health | grep -q '"ok"'; then
+                return 0
+              fi
+              i=$((i + 1))
+              sleep 5
+            done
+            echo "Порт 80 не отдал JSON /health." >&2
+            return 1
+          }
+          page_count() {
+            curl -kfsS https://127.0.0.1/ | sed -n 's/.*открыта \([0-9][0-9]*\) раз.*/\1/p'
+          }
+          wait_count() {
+            i=0
+            while [ "$i" -lt 24 ]; do
+              n=$(page_count || true)
+              if [ -n "$n" ]; then
+                printf '%s' "$n"
+                return 0
+              fi
+              i=$((i + 1))
+              sleep 5
+            done
+            echo "Страница счётчика по HTTPS не открылась." >&2
+            return 1
+          }
+          wait_http
+          first=$(wait_count)
+          second=$(wait_count)
+          test "$second" -gt "$first"
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml restart postgres
+          i=0
+          while [ "$i" -lt 24 ]; do
+            third=$(page_count || true)
+            if [ -n "$third" ] && [ "$third" -gt "$second" ]; then
+              exit 0
+            fi
+            i=$((i + 1))
+            sleep 5
+          done
+          echo "Счётчик не вырос после рестарта базы." >&2
+          exit 1
+
+      - name: Remove stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+
   publish:
     name: Build and push image
-    needs: test
+    needs: [test, integration, stack]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -93,4 +206,5 @@ jobs:
           command_timeout: 10m
           script: |
             cd /opt/docker-vps-deploy
+            git -c safe.directory=/opt/docker-vps-deploy pull --ff-only origin main
             sh deploy/update.sh
