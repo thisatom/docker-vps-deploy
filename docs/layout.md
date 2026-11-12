@@ -18,14 +18,16 @@
 | `.gitignore`, `.dockerignore` | Что не коммитить и что не класть в образ |
 | `docs/` | Архитектура, решения, текст для собеседования, проверка сервера |
 | `pyproject.toml`, `app/` | FastAPI: `/health` и страница счётчика |
-| `tests/` | pytest: health без базы, счётчик с подменой доступа |
+| `tests/` | pytest: health без базы, счётчик с подменой; живой PostgreSQL только при `DATABASE_URL` |
 | `Dockerfile` | Два этапа, пользователь `app`, Uvicorn на порту 8000 |
 | `docker-compose.yml` | `app`, `postgres` с volume и healthcheck, `nginx` на портах 80 и 443 |
-| `nginx/` | Порты 80 и 443. Временный сертификат, затем файлы Let's Encrypt из volume |
-| `deploy/issue-certificate.sh` | Первый выпуск сертификата на VPS |
+| `nginx/` | Порт 80: проверка Certbot и `/health`. Порт 443: сайт. Временный сертификат, затем Let's Encrypt |
+| `docker-compose.ci.yml` | Только смоук в GitHub Actions: не скачивать локальный тег приложения из реестра |
+| `deploy/issue-certificate.sh` | Первый выпуск сертификата на VPS и запись продления в crontab |
 | `deploy/renew-certificate.sh` | Продление сертификата и перечитка конфига Nginx |
-| `deploy/update.sh` | Обновление на VPS: pull образа и up, без удаления volume |
-| `.github/workflows/ci.yml` | Ruff и pytest на каждый push. Сборка, GHCR и SSH только из `main` |
+| `deploy/install-renew-cron.sh` | Crontab: два раза в сутки вызвать продление |
+| `deploy/update.sh` | На VPS: `git pull --ff-only`, pull образа и up, без удаления volume |
+| `.github/workflows/ci.yml` | Ruff, pytest, PostgreSQL, смоук Compose. Сборка, GHCR и SSH только из `main` |
 
 ## Запланировано
 

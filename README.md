@@ -10,9 +10,9 @@
 - приложение FastAPI и тесты pytest;
 - Dockerfile: два этапа, процесс не от root;
 - Docker Compose: приложение, PostgreSQL с volume и healthcheck, Nginx на портах 80 и 443;
-- выпуск и продление сертификата Let's Encrypt через Certbot;
-- `deploy/update.sh`: на VPS скачать образ и поднять стек;
-- GitHub Actions: Ruff и pytest на каждый push; сборка, GHCR и деплой по SSH только из `main`.
+- выпуск и продление сертификата Let's Encrypt через Certbot, продление два раза в сутки из crontab;
+- `deploy/update.sh`: на VPS подтянуть `main`, скачать образ и поднять стек;
+- GitHub Actions: Ruff, pytest, тест с PostgreSQL и смоук трёх контейнеров на каждый push; сборка, GHCR и деплой по SSH только из `main`.
 
 Сайт на VPS откроется после зелёного прогона workflow на `main`. Для этого на сервере нужен клон в `/opt/docker-vps-deploy`, файл `.env` и секреты `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`. Этот прогон из репозитория сам по себе ещё не доказывает, что сервер уже отвечает.
 
@@ -58,7 +58,7 @@ flowchart LR
 
 Браузер попадает только на Nginx. Nginx проксирует запрос в FastAPI по внутренней сети Compose. FastAPI читает и увеличивает счётчик в PostgreSQL. Наружу порты приложения и базы не публикуются.
 
-GitHub Actions на каждый push гоняет линтер и тесты. Push в `main` после зелёных тестов публикует образ в GHCR и по SSH запускает на сервере:
+GitHub Actions на каждый push гоняет линтер, тесты, проверку счётчика в PostgreSQL и смоук Compose на раннере. Push в `main` после этих проверок публикует образ в GHCR и по SSH запускает на сервере:
 
 ```bash
 sh deploy/update.sh
@@ -71,11 +71,11 @@ sh deploy/update.sh
 ```text
 Dockerfile            два этапа, пользователь app, порт 8000
 app/                  FastAPI: /health и счётчик
-tests/                pytest без живой базы
+tests/                pytest: подмена базы и, при DATABASE_URL, живой PostgreSQL
 docker-compose.yml    app, postgres, nginx
-nginx/                порты 80 и 443, шаблон прокси
-deploy/               выпуск сертификата, продление, обновление стека
-.github/workflows/    CI: тесты, образ в GHCR, деплой по SSH
+nginx/                порт 80: проверка Certbot и /health; порт 443: сайт
+deploy/               выпуск сертификата, crontab продления, обновление стека
+.github/workflows/    CI: тесты, PostgreSQL, смоук Compose, образ в GHCR, деплой по SSH
 docs/                 архитектура, решения, ответы, проверка
 .cursor/rules/        правила для агента по темам
 .cursor/hooks/        запрет локального Docker и секретов в git
@@ -102,7 +102,7 @@ Docker на компьютере, где пишется код, недоступ
 3. Склонировать репозиторий на сервер в `/opt/docker-vps-deploy`. Рядом с `docker-compose.yml` скопировать `.env.example` в `.env` и подставить свои значения. В `APP_IMAGE` владелец репозитория пишется строчными буквами, тег для обычного деплоя — `latest`.
 4. Если пакет в GHCR закрытый, один раз на сервере выполнить `docker login ghcr.io`. Токен в git не класть. Пользователь SSH должен иметь право запускать Docker.
 5. В GitHub Secrets записать `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
-6. Выпустить сертификат: `sh deploy/issue-certificate.sh`. Подробности — `docs/decisions/0002-https.md`.
+6. Выпустить сертификат: `sh deploy/issue-certificate.sh`. Скрипт также записывает продление в crontab. Подробности — `docs/decisions/0002-https.md`.
 7. Дальше сервер обновляется из Actions. Вручную та же команда:
 
    ```bash
@@ -115,7 +115,7 @@ Docker на компьютере, где пишется код, недоступ
 
 1. Выбрать SHA предыдущего успешного деплоя.
 2. На сервере в `.env` заменить `APP_IMAGE` на этот тег.
-3. Выполнить `sh deploy/update.sh`.
+3. Выполнить `sh deploy/update.sh`. Скрипт подтянет файлы текущего `main` и скачает образ из `.env`.
 4. Открыть `/health`.
 
 Volume базы при откате не удалять. `docker compose down -v` сотрёт счётчик. Для отката эта команда не используется.
@@ -134,7 +134,9 @@ pytest
 
 `/health` в тесте вызывается без `DATABASE_URL`. Счётчик в тесте получает число из подмены, а не из PostgreSQL.
 
-Те же команды выполняет GitHub Actions после push. Вкладка Actions, workflow `CI`, job `Ruff and pytest`. Для этого раннеру не нужны секреты и база.
+Те же команды выполняет GitHub Actions после push. Вкладка Actions, workflow `CI`, job `Ruff and pytest`. Для этого job не нужны секреты и база.
+
+Живой PostgreSQL и три контейнера проверяет тот же workflow, но другие job: `Pytest with PostgreSQL` и `Compose smoke`. Они тоже не используют секреты VPS. Смоук собирает образ на раннере и удаляет стек в конце. На VPS эта сборка не выполняется.
 
 Дополнительно в репозитории:
 
@@ -142,7 +144,7 @@ pytest
 - в `.env.example` стоят `change-me` и `example.com`;
 - `docs/layout.md` не обещает файлов, которых нет.
 
-После деплоя чеклист на сервере лежит в `docs/runbook.md`: `docker compose ps`, `curl` на `/health`, два запроса к счётчику, рестарт базы без потери числа.
+После деплоя чеклист на сервере лежит в `docs/runbook.md`: `docker compose ps`, `curl http://127.0.0.1/health`, два запроса к странице по HTTPS, рестарт базы без потери числа.
 
 ## Документы
 

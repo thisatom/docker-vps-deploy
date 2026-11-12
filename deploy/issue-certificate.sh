@@ -35,3 +35,6 @@ docker compose --profile certificates run --rm certbot certonly \
 
 echo "Пересоздаю nginx, чтобы он прочитал сертификат из volume."
 docker compose up -d --force-recreate --no-deps nginx
+
+echo "Записываю продление сертификата в crontab."
+sh deploy/install-renew-cron.sh

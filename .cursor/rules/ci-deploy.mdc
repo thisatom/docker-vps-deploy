@@ -9,10 +9,12 @@ alwaysApply: false
 Один workflow `.github/workflows/ci.yml`.
 
 1. Job с Ruff и pytest запускается на каждый push и на pull request. База и Docker этому job не нужны.
-2. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — только push в `main`, после зелёных тестов. Теги: полный SHA коммита и `latest`.
-3. SSH на VPS в каталог `/opt/docker-vps-deploy`: `sh deploy/update.sh`. Скрипт делает `docker compose pull` и `docker compose up -d`.
+2. Job с живым PostgreSQL гоняет тест счётчика. Без `DATABASE_URL` этот тест пропускается, локальный pytest его не требует.
+3. Job Compose smoke на раннере GitHub собирает образ приложения, поднимает `postgres`, `app` и `nginx`, проверяет `/health` и рост счётчика, затем удаляет стек. Это не деплой и не сборка на VPS.
+4. Сборка образа и push в `ghcr.io/<owner>/docker-vps-deploy` — только push в `main`, после зелёных тестов и смоука. Теги: полный SHA коммита и `latest`.
+5. SSH на VPS в каталог `/opt/docker-vps-deploy`: сначала `git pull --ff-only origin main`, затем `sh deploy/update.sh`. Скрипт повторяет pull, затем делает `docker compose pull` и `docker compose up -d`.
 
-Деплой не стартует, если тесты упали или событие — не push в `main`. Контекст `secrets` нельзя писать в `if`: ни у job, ни у шага. Иначе workflow невалиден и не стартует даже Ruff. Пустые `VPS_HOST`, `VPS_USER` или `VPS_SSH_KEY` определяются обычным шагом и пропускают SSH. Job при этом зелёный, сервер не меняется. Сборки на сервере нет.
+Деплой не стартует, если проверки упали или событие — не push в `main`. Контекст `secrets` нельзя писать в `if`: ни у job, ни у шага. Иначе workflow невалиден и не стартует даже Ruff. Пустые `VPS_HOST`, `VPS_USER` или `VPS_SSH_KEY` определяются обычным шагом и пропускают SSH. Job при этом зелёный, сервер не меняется. Сборки на сервере нет. Файл `docker-compose.ci.yml` на VPS не используется.
 
 ## Секреты Actions
 

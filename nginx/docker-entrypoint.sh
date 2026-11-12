@@ -17,8 +17,12 @@ if [ -s "${live}/fullchain.pem" ] && [ -s "${live}/privkey.pem" ]; then
   export CERT_DIR="${live}"
 else
   if ! command -v openssl >/dev/null 2>&1; then
-    echo "В образе Nginx нет команды openssl. Временный сертификат создать нельзя." >&2
-    exit 1
+    if ! command -v apk >/dev/null 2>&1; then
+      echo "Нет команды openssl и нет apk. Временный сертификат создать нельзя." >&2
+      exit 1
+    fi
+    echo "В образе нет openssl. Ставлю пакет: он нужен только для временного сертификата."
+    apk add --no-cache openssl
   fi
   mkdir -p "${dummy}"
   if [ ! -s "${dummy}/fullchain.pem" ] || [ ! -s "${dummy}/privkey.pem" ]; then
